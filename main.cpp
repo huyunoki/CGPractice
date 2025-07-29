@@ -344,21 +344,33 @@ void drawSingleLantern(const KomLoyLantern& l) {
     glPopMatrix();
 }
 
-// シンプルな地面を描画する関数
+// 地面を描画する関数 (夜空に合う色に調整)
 void drawGround() {
     glEnable(GL_LIGHTING); // 地面はシーンのライティングの影響を受ける
-    glColor3f(0.05f, 0.05f, 0.1f); // 夜の地面用の非常に暗い青/黒
 
     glPushMatrix();
-    // カメラの初期Y座標よりわずかに下に地面を配置し、XZ方向に広くする
-    glTranslatef(0.0f, -0.5f, 0.0f); // カメラの視点レベルより下にY座標を調整
+    // 地面をカメラの初期Y座標より下に配置
+    glTranslatef(0.0f, -1.0f, 0.0f); // 地面の高さを調整
+
+    float groundSize = 500.0f; // 地面の広さ
+
+    // 法線は常に上向き
+    glNormal3f(0.0f, 1.0f, 0.0f);
 
     glBegin(GL_QUADS);
-    // ライティング用の法線を定義
-    glNormal3f(0.0f, 1.0f, 0.0f); // 上向きの法線
+    // 夜空に合うように暗い緑色に調整し、わずかなバリエーションを加える
+    float r_base = 0.08f; // 暗い緑の赤成分
+    float g_base = 0.15f; // 暗い緑の緑成分
+    float b_base = 0.08f; // 暗い緑の青成分
 
-    // 大きな四角形を描画
-    float groundSize = 500.0f; // 非常に大きくする
+    // 色のランダムなばらつきを非常に小さくして、統一感を出す
+    float r_offset = getRandomFloat(-0.01f, 0.01f);
+    float g_offset = getRandomFloat(-0.01f, 0.01f);
+    float b_offset = getRandomFloat(-0.01f, 0.01f);
+
+    glColor3f(r_base + r_offset, g_base + g_offset, b_base + b_offset);
+
+    // 大きな四角形として地面を描画
     glVertex3f(-groundSize, 0.0f, -groundSize);
     glVertex3f(groundSize, 0.0f, -groundSize);
     glVertex3f(groundSize, 0.0f, groundSize);
@@ -558,7 +570,7 @@ void specialKeyboardUp(int key, int x, int y) {
 
 // アニメーション更新のためのタイマー関数
 void timer(int value) {
-    float moveSpeed = 0.05f; // カメラの移動速度を増加
+    float moveSpeed = 0.7f; // カメラの移動速度を増加
 
     // カメラのY軸回転 (向いている方向) に基づいて移動方向を計算
     float cameraFacingRad = cameraRotationY * M_PI / 180.0; // カメラ自身の回転を移動方向に使用
