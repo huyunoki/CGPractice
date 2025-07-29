@@ -9,25 +9,17 @@
 #include <chrono>   // For seeding random number generator
 
 // Camera variables
-float cameraAngleX = 20.0f; // Initial downward angle (pitch)
-// cameraAngleY is now effectively managed by humanRotationY for camera yaw
-// float cameraAngleY = 0.0f; 
-float cameraDistance = 8.0f; // Increased distance for third-person view
+float cameraX = 0.0f;    // Camera's X position
+float cameraY = 1.75f;   // Camera's Y position (eye height)
+float cameraZ = 0.0f;    // Camera's Z position
+float cameraRotationY = 0.0f; // Camera's yaw (horizontal rotation)
+float cameraAngleX = 0.0f; // Camera's pitch (vertical rotation) - Initialized to 0 for straight look
 float lastMouseX, lastMouseY;
 bool mouseDragging = false;
-
-// Human model's state
-float humanX = 0.0f;
-float humanY = 0.0f;
-float humanZ = 0.0f;
-float humanRotationY = 0.0f; // Human's orientation (yaw), controlled by mouse X
 
 // Keyboard state array
 bool keyStates[256] = { false }; // For standard keys
 bool specialKeyStates[256] = { false }; // For special keys (GLUT_KEY_UP, etc.)
-
-// Animation state
-float walkCycle = 0.0f;
 
 // Random number generator setup
 std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -35,8 +27,8 @@ std::uniform_real_distribution<float> dist_pos(-50.0f, 50.0f); // For initial X,
 std::uniform_real_distribution<float> dist_vel_y(0.01f, 0.03f); // For upward velocity
 std::uniform_real_distribution<float> dist_vel_xz(-0.005f, 0.005f); // For horizontal drift
 std::uniform_real_distribution<float> dist_flame_offset(0.0f, 100.0f); // For unique flame animation offsets
-// Initial Y positions for lanterns, can start below or above the human
-std::uniform_real_distribution<float> dist_starting_y(-10.0f, 50.0f);
+// ランタンの初期Y位置の分布 (カメラの高さから上空まで)
+std::uniform_real_distribution<float> dist_starting_y(0.0f, 35.0f); // cameraYからのオフセットとして使用
 
 struct Object {
     float x, y, z; // Position
@@ -69,14 +61,13 @@ struct FlamePolygon {
 
 std::vector<FlamePolygon> flamePolygons; // These define the general flame shape/behavior
 
-// Function prototypes (declarations)
+// Function prototypes (declarations) - 全ての関数が定義される前に認識されるようにします
 void drawFlame(float flameAnimTime, float corePulse);
 void drawHook();
 void drawLanternFrame();
 void drawLanternCover();
 void drawLanternRoof();
 void drawSingleLantern(const KomLoyLantern& l);
-void drawHuman();
 
 
 // Function to draw the flame (now takes individual lantern's animation time)
@@ -348,72 +339,8 @@ void drawSingleLantern(const KomLoyLantern& l) {
     glPopMatrix();
 }
 
-// Function to draw the human model (unchanged)
-void drawHuman() {
-    glPushMatrix();
-
-    // Position and orient the human model
-    glTranslatef(humanX, humanY, humanZ);
-    glRotatef(humanRotationY, 0.0f, 1.0f, 0.0f); // Human's rotation applied here
-
-    // Animation parameters for walking
-    float armAngle = sin(walkCycle) * 45.0f;
-    float legAngle = sin(walkCycle) * 45.0f;
-
-    // Torso
-    glColor3f(0.0f, 0.0f, 1.0f); // Blue torso
-    glPushMatrix();
-    glTranslatef(0.0f, 0.5f, 0.0f);
-    glScalef(0.6f, 1.0f, 0.3f);
-    glutSolidCube(1.0);
-    glPopMatrix();
-
-    // Head
-    glColor3f(1.0f, 0.8f, 0.6f); // Skin color
-    glPushMatrix();
-    glTranslatef(0.0f, 1.25f, 0.0f);
-    glutSolidSphere(0.3, 20, 20);
-    glPopMatrix();
-
-    // Right Arm
-    glPushMatrix();
-    glTranslatef(0.4f, 0.9f, 0.0f);
-    glRotatef(armAngle, 1.0f, 0.0f, 0.0f); // Animate arm swing
-    glTranslatef(0.0f, -0.4f, 0.0f);
-    glScalef(0.2f, 0.8f, 0.2f);
-    glutSolidCube(1.0);
-    glPopMatrix();
-
-    // Left Arm
-    glPushMatrix();
-    glTranslatef(-0.4f, 0.9f, 0.0f);
-    glRotatef(-armAngle, 1.0f, 0.0f, 0.0f); // Animate arm swing (opposite)
-    glTranslatef(0.0f, -0.4f, 0.0f);
-    glScalef(0.2f, 0.8f, 0.2f);
-    glutSolidCube(1.0);
-    glPopMatrix();
-
-    // Right Leg
-    glColor3f(0.2f, 0.2f, 0.2f); // Dark pants
-    glPushMatrix();
-    glTranslatef(0.2f, 0.0f, 0.0f);
-    glRotatef(-legAngle, 1.0f, 0.0f, 0.0f); // Animate leg swing
-    glTranslatef(0.0f, -0.5f, 0.0f);
-    glScalef(0.25f, 1.0f, 0.25f);
-    glutSolidCube(1.0);
-    glPopMatrix();
-
-    // Left Leg
-    glPushMatrix();
-    glTranslatef(-0.2f, 0.0f, 0.0f);
-    glRotatef(legAngle, 1.0f, 0.0f, 0.0f); // Animate leg swing (opposite)
-    glTranslatef(0.0f, -0.5f, 0.0f);
-    glScalef(0.25f, 1.0f, 0.25f);
-    glutSolidCube(1.0);
-    glPopMatrix();
-
-    glPopMatrix();
-}
+// Function to draw the human model (完全に削除)
+// void drawHuman() { /* 空の関数、または削除 */ }
 
 // Initialization function
 void init() {
@@ -480,26 +407,20 @@ void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear color and depth buffers
     glLoadIdentity(); // Reset the modelview matrix
 
-    // Set up the third-person camera looking at the human
-    // Calculate camera position behind and slightly above the human,
-    // relative to human's facing direction (humanRotationY)
-    float cameraYawRad = humanRotationY * M_PI / 180.0f; // Camera yaw aligns with human's yaw
-    float camX = humanX - sin(cameraYawRad) * cameraDistance;
-    float camY = humanY + 1.5f; // Camera height
-    float camZ = humanZ + cos(cameraYawRad) * cameraDistance;
+    // Camera setup (常に一人称視点)
+    float eyeHeight = cameraY; // カメラの現在のY位置が視点の高さ
+    float yawRad = cameraRotationY * M_PI / 180.0f;
+    float pitchRad = cameraAngleX * M_PI / 180.0f; // cameraAngleXをピッチとして使用
 
-    // Apply camera pitch (cameraAngleX) to the camera's vertical position relative to the human
-    // This is a simplified way to apply pitch with gluLookAt
-    float pitchOffset = cameraDistance * sin(cameraAngleX * M_PI / 180.0f);
-    camY += pitchOffset;
+    float lookDirX = cos(pitchRad) * sin(yawRad);
+    float lookDirY = sin(pitchRad);
+    float lookDirZ = -cos(pitchRad) * cos(yawRad); // OpenGLのフォワードは-Z方向
 
-    // Use gluLookAt to set the camera
-    gluLookAt(camX, camY, camZ,       // Camera position
-        humanX, humanY + 0.5f, humanZ, // Look at human's center
-        0.0f, 1.0f, 0.0f);      // Up vector
+    gluLookAt(cameraX, eyeHeight, cameraZ, // カメラ位置
+        cameraX + lookDirX, eyeHeight + lookDirY, cameraZ + lookDirZ, // 注視点
+        0.0f, 1.0f, 0.0f);          // アップベクトル
 
-    // Draw the human model
-    drawHuman();
+    // 人間モデルは描画されません。
 
     // Draw all lanterns
     for (const auto& l : lanterns) {
@@ -538,12 +459,18 @@ void motion(int x, int y) {
         float deltaX = (float)(x - lastMouseX); // Explicit cast to float
         float deltaY = (float)(y - lastMouseY); // Explicit cast to float
 
-        humanRotationY += deltaX * 0.5f; // Mouse X now rotates the human directly
-        cameraAngleX += deltaY * 0.5f; // Mouse Y still controls camera pitch
+        cameraRotationY += deltaX * 0.5f; // マウスXでカメラのヨーを回転
+
+        // 上下方向の動きを統一 (マウスを上に動かせば視点も上を向くように)
+        // cameraAngleX はピッチを表す。マウスを上に動かすと deltaY は負になる。
+        // 視点を上に向けるには cameraAngleX の値を増やす必要がある。
+        // よって、deltaY が負の時に cameraAngleX が増えるように、 -= を使う。
+        // これで、マウスを上に動かすと視点も上に動く (Y軸反転なし)
+        cameraAngleX -= deltaY * 0.5f;
 
         // Clamp cameraAngleX to prevent flipping
-        if (cameraAngleX > 89.0f) cameraAngleX = 89.0f;
-        if (cameraAngleX < -89.0f) cameraAngleX = -89.0f;
+        if (cameraAngleX > 60.0f) cameraAngleX = 60.0f; // 上限を75度に設定
+        if (cameraAngleX < -89.0f) cameraAngleX = -89.0f; // 下限はそのまま
 
         lastMouseX = x;
         lastMouseY = y;
@@ -554,7 +481,7 @@ void motion(int x, int y) {
 
 // Keyboard key down callback function (for standard keys)
 void keyboard(unsigned char key, int x, int y) {
-    // 'l' or 'L' no longer releases a single lantern, as all are released at start
+    // 視点切り替えキーは削除されました
     keyStates[key] = true; // Set key state to true when pressed
 }
 
@@ -575,117 +502,96 @@ void specialKeyboardUp(int key, int x, int y) {
 
 // Timer function for animation updates
 void timer(int value) {
-    float moveSpeed = 2.0f;
-    bool isMoving = false;
+    float moveSpeed = 0.05f; // Increased movement speed for camera
 
-    // Calculate movement direction based on human's Y-axis rotation (facing direction)
-    float humanFacingRad = humanRotationY * M_PI / 180.0; // Use human's own rotation for movement direction
+    // Calculate movement direction based on camera's Y-axis rotation (facing direction)
+    float cameraFacingRad = cameraRotationY * M_PI / 180.0; // Use camera's own rotation for movement direction
 
     float deltaMoveX = 0.0f;
     float deltaMoveZ = 0.0f;
 
     // Forward/Backward movement
     if (specialKeyStates[GLUT_KEY_UP]) {
-        deltaMoveX += sin(humanFacingRad) * moveSpeed;
-        deltaMoveZ -= cos(humanFacingRad) * moveSpeed;
-        isMoving = true;
+        deltaMoveX += sin(cameraFacingRad) * moveSpeed;
+        deltaMoveZ -= cos(cameraFacingRad) * moveSpeed;
     }
     if (specialKeyStates[GLUT_KEY_DOWN]) {
-        deltaMoveX -= sin(humanFacingRad) * moveSpeed;
-        deltaMoveZ += cos(humanFacingRad) * moveSpeed;
-        isMoving = true;
+        deltaMoveX -= sin(cameraFacingRad) * moveSpeed;
+        deltaMoveZ += cos(cameraFacingRad) * moveSpeed;
     }
-    // Strafe Left/Right movement (relative to human's facing)
+    // Strafe Left/Right movement (relative to camera's facing)
     if (specialKeyStates[GLUT_KEY_LEFT]) {
         // Strafe left is 90 degrees counter-clockwise from facing direction
-        deltaMoveX -= cos(humanFacingRad) * moveSpeed;
-        deltaMoveZ -= sin(humanFacingRad) * moveSpeed;
-        isMoving = true;
+        deltaMoveX -= cos(cameraFacingRad) * moveSpeed;
+        deltaMoveZ -= sin(cameraFacingRad) * moveSpeed;
     }
     if (specialKeyStates[GLUT_KEY_RIGHT]) {
         // Strafe right is 90 degrees clockwise from facing direction
-        deltaMoveX += cos(humanFacingRad) * moveSpeed;
-        deltaMoveZ += sin(humanFacingRad) * moveSpeed;
-        isMoving = true;
+        deltaMoveX += cos(cameraFacingRad) * moveSpeed;
+        deltaMoveZ += sin(cameraFacingRad) * moveSpeed;
     }
 
-    humanX += deltaMoveX;
-    humanZ += deltaMoveZ;
+    cameraX += deltaMoveX;
+    cameraZ += deltaMoveZ;
 
-    // Update walk animation cycle
-    if (isMoving) {
-        walkCycle += 0.1f; // Adjust animation speed
-    }
-    else {
-        walkCycle = 0; // Reset to standing pose when not moving
-    }
+    // 定義されたカリングボックス (カメラの位置を基準)
+    float cull_min_y = cameraY - 1.0f;
+    float cull_max_y = cameraY + 37.5f;
+    float cull_horizontal_radius = 50.0f;
 
-    // Define a culling box around the human for lantern management
-    // Lanterns below the human's feet will disappear quickly
-    float cull_min_y = humanY - 1.0f; // 1 unit below human (effectively at human's feet)
-    // ランタンが消える高さ (現在の 75.0f の半分)
-    float cull_max_y = humanY + 37.5f; // 75.0f / 2 = 37.5f
-    // Lanterns too far horizontally will disappear
-    float cull_horizontal_radius = 50.0f; // Increased for a wider, more consistent distribution
+    // ランタンの再出現位置の分布 (カメラの位置を基準)
+    std::uniform_real_distribution<float> respawn_y_offset_dist(0.0f, 35.0f);
+    std::uniform_real_distribution<float> respawn_xz_offset_dist(-50.0f, 50.0f);
 
-    // Distributions for respawning lanterns relative to the human
-    // New lanterns will appear from human's height up to a certain height above
-    // 再出現する高さの範囲も半分に調整 (70.0f / 2 = 35.0f)
-    std::uniform_real_distribution<float> respawn_y_offset_dist(0.0f, 35.0f); // キャラクターの目線あたりから上空35mまでで再出現
-    // New lanterns will appear within a closer horizontal range, matching cull_horizontal_radius
-    std::uniform_real_distribution<float> respawn_xz_offset_dist(-50.0f, 50.0f); // Offset from humanX/Z (matches cull radius)
-
-    // Update all lanterns
+    // 全てのランタンを更新
     for (auto& l : lanterns) {
         l.x += l.velX;
         l.y += l.velY;
         l.z += l.velZ;
 
-        // Animate each lantern's flame independently
-        l.currentFlameAnimation += 0.05f; // Slower overall animation
+        // 各ランタンの炎を個別にアニメーション
+        l.currentFlameAnimation += 0.05f;
         l.corePulsation = (sin(l.currentFlameAnimation * 1.0f) + 1.0f) * 0.5f;
 
-        // Reset lantern if it goes outside the culling box
-        // This logic ensures continuous respawn even when stationary
+        // ランタンがカリングボックス外に出たらリセット
         if (l.y < cull_min_y || l.y > cull_max_y ||
-            std::abs(l.x - humanX) > cull_horizontal_radius ||
-            std::abs(l.z - humanZ) > cull_horizontal_radius)
+            std::abs(l.x - cameraX) > cull_horizontal_radius ||
+            std::abs(l.z - cameraZ) > cull_horizontal_radius)
         {
-            // Respawn lantern at a random position within the desired viewable range
-            // This ensures lanterns appear around the character and can start high up.
-            l.y = humanY + respawn_y_offset_dist(rng); // Respawn from human's height upwards
-            l.x = humanX + respawn_xz_offset_dist(rng);
-            l.z = humanZ + respawn_xz_offset_dist(rng);
+            // ランダムな位置に再出現 (カメラの現在位置を基準)
+            l.y = cameraY + respawn_y_offset_dist(rng);
+            l.x = cameraX + respawn_xz_offset_dist(rng);
+            l.z = cameraZ + respawn_xz_offset_dist(rng);
 
-            l.velX = dist_vel_xz(rng); // Re-randomize horizontal velocity
-            l.velY = dist_vel_y(rng);  // Re-randomize upward velocity
+            l.velX = dist_vel_xz(rng);
+            l.velY = dist_vel_y(rng);
             l.velZ = dist_vel_xz(rng);
         }
     }
 
-    glutPostRedisplay(); // Request a redraw
-    glutTimerFunc(16, timer, 0); // Call timer again after 16ms (approx 60 FPS)
+    glutPostRedisplay(); // 再描画を要求
+    glutTimerFunc(16, timer, 0); // 約60 FPSでタイマーを再呼び出し
 }
 
 int main(int argc, char** argv) {
-    glutInit(&argc, argv); // Initialize GLUT
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH); // Double buffer, RGB color, Depth buffer
-    glutInitWindowSize(800, 600); // Set initial window size
-    glutCreateWindow("Kom Loy Festival Simulation"); // Create window with title
+    glutInit(&argc, argv); // GLUTを初期化
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH); // ダブルバッファ、RGBカラー、デプスバッファ
+    glutInitWindowSize(800, 600); // 初期ウィンドウサイズを設定
+    glutCreateWindow("Kom Loy Festival Simulation"); // ウィンドウを作成
 
-    init(); // Call custom initialization function
+    init(); // カスタム初期化関数を呼び出し
 
-    // Register callback functions
+    // コールバック関数を登録
     glutDisplayFunc(display);
     glutReshapeFunc(reshape);
     glutMouseFunc(mouse);
     glutMotionFunc(motion);
-    glutKeyboardFunc(keyboard); // Register standard keyboard callback
-    glutKeyboardUpFunc(keyboardUp); // Register standard keyboard up callback
-    glutSpecialFunc(specialKeyboard); // Register special keyboard callback
-    glutSpecialUpFunc(specialKeyboardUp); // Register special keyboard up callback
-    glutTimerFunc(0, timer, 0); // Start the timer immediately
+    glutKeyboardFunc(keyboard);
+    glutKeyboardUpFunc(keyboardUp);
+    glutSpecialFunc(specialKeyboard);
+    glutSpecialUpFunc(specialKeyboardUp);
+    glutTimerFunc(0, timer, 0); // タイマーをすぐに開始
 
-    glutMainLoop(); // Enter the GLUT event processing loop
+    glutMainLoop(); // GLUTイベント処理ループに入る
     return 0;
 }
